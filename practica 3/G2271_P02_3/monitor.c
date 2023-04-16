@@ -14,7 +14,7 @@ int monitor(int lag)
 {
     printf("Monitor\n");
     /*
-    //abre el segmento de memoria compartidaa
+    //abre el segmento de memoria compartida
     int fd;
     fd = shm_open(SHM_NAME, O_RDWR, 0666);
     if (fd == -1)

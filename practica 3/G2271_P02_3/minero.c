@@ -1,18 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <sys/sem.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <mqueue.h>
-
-#include "pow.h"
+#include "minero.h"
 /*
 El programa se debe ejecutar con dos parametros:
 ./ miner < ROUNDS > <LAG >
@@ -27,7 +13,12 @@ El proceso resultante de ejecutar este programa, Minero:
 • Una vez terminadas las rondas, enviara un bloque especial con algun codigo que permita saber al proceso Comprobador que el sistema esta finalizando.
 • Liberara los recursos y terminara.
 */
-#define QUEUE_NAME "/cola"
+
+struct msgbuf
+{
+    int value1;
+    int value2;
+} msg_buf;
 
 int pow_search(int objetivo)
 {
@@ -52,8 +43,9 @@ int main(int argc, char *argv[])
     //crea la cola de mensajes
     mqd_t mq;
     struct mq_attr attr;
-    attr.mq_maxmsg = 7;
-    attr.mq_msgsize = sizeof(int) * 2;
+    attr.mq_maxmsg = MAX_MSG;
+    attr.mq_msgsize = BUFFER_SIZE;
+    mq_unlink(QUEUE_NAME);
     mq = mq_open(QUEUE_NAME, O_CREAT | O_RDWR, 0666, &attr);
     if (mq == -1)
     {
@@ -81,14 +73,15 @@ int main(int argc, char *argv[])
             printf("Solution accepted: %08d --> %08d\n", objetivo, res);
         }
         /* Enviara un mensaje por la cola de mensajes que contenga, al menos, el objetivo y la solucion hallada. */
-        int msg[2];
-        msg[0] = objetivo;
-        msg[1] = res;
-        if (mq_send(mq, (char *)msg, sizeof(msg), 0) == -1)
+        struct msgbuf msg;
+        msg.value1 = objetivo;
+        msg.value2 = res;
+        if (mq_send(mq, (const char *)&msg, sizeof(struct msgbuf), 0) == -1)
         {
             perror("Error sending message");
             exit(EXIT_FAILURE);
         }
+    
         objetivo = res;
         sleep(lag);
     }
@@ -96,14 +89,14 @@ int main(int argc, char *argv[])
     /*
     Una vez terminadas las rondas, enviara un bloque especial con algun codigo que permita saber al proceso Comprobador que el sistema esta finalizando.
     */
-    int msg[2];
+    /* int msg[2];
     msg[0] = -1;
     msg[1] = -1;
     if (mq_send(mq, (char *)msg, sizeof(msg), 0) == -1)
     {
         perror("Error sending message");
         exit(EXIT_FAILURE);
-    }
+    } */
     /*
     liberara los recursos y terminara.
     */

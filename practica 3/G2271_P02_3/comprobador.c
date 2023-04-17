@@ -10,22 +10,73 @@ El proceso Comprobador:
 
 #include "comprobador.h"
 #include "monitor.h"
-#define SHM_KEY 123
+#include "minero.h"
+
+struct msgbuf
+{
+    int value1;
+    int value2;
+} msg_buf;
+
 
 int comprobador(int lag){
     printf("Comprobador\n");
     // Crea e inicializa un segmento de memoria compartida utilizando la funcion shmget
-    int fd_shm;
-    fd_shm = shmget(SHM_KEY, sizeof(int), IPC_CREAT | 0666);
-    if (fd_shm == -1){
-        perror("Error creating the shared memory");
-        exit(EXIT_FAILURE);
-    }else{
-        printf("Shared memory created\n");
+    int msg_count = 0;
+    int fd = shm_open(SHM_NAME, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    if (fd < 0)
+    {
+        perror("shm_open");
+        exit(1);
+    }
+    ftruncate(fd, 1024);
+    printf("Memoria compartida creada\n");
+    
+    // Hacer algo con la memoria compartida recién creada
+    void *ptr = mmap(NULL, 1024, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (ptr == MAP_FAILED)
+    {
+        perror("mmap");
+        exit(1);
     }
 
-    close(fd_shm);
-    shmctl(fd_shm, IPC_RMID, NULL);
+    /*inicializa la cola de mensajes para recibir un mensaje*/
+    mqd_t mq;
+
+    mq = mq_open(QUEUE_NAME, O_RDONLY);
+    if (!mq)
+    {
+        perror("Error opening the message queue");
+        exit(EXIT_FAILURE);
+    }
+    // Recibe un bloque y lo muestra
+    struct msgbuf msg;
+    while(msg_count < MAX_MSG){
+        if (!mq_receive(mq, (char *)&msg, BUFFER_SIZE, NULL))
+        {
+            perror("Error receiving the message");
+            exit(EXIT_FAILURE);
+        }
+        printf("Message received:  %08d --> %08d\n", msg.value1, msg.value2);
+        msg_count++;      
+    }
+    mq_close(mq);
+    // Cierra el segmento de memoria compartida
+    if (munmap(ptr, 1024) == -1)
+    {
+        perror("Error unmapping the shared memory");
+        exit(EXIT_FAILURE);
+    }
+    /*elimina la memoria reservad*/
+    close( fd );
+    if (shm_unlink(SHM_NAME) == -1)
+    {
+        perror("Error removing the shared memory");
+        exit(EXIT_FAILURE);
+    }
+
+    return 0;   
+
 
     /*
     if (ftruncate(fd_shm, SHM_SIZE) == -1){

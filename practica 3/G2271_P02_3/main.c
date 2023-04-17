@@ -136,7 +136,6 @@ Solution accepted : 16391022 --> 41194344
 #include "comprobador.h"
 #include "monitor.h"
 
-#define SHM_KEY 123
 #define INT_LIST_SIZE 10
 #define MSG_MAX 100
 
@@ -150,30 +149,19 @@ int main(int argc, char *argv[])
 {    
     int lag = atoi(argv[1]);
 
-    
-    int fd_shm_get = shmget(SHM_KEY, sizeof(int), IPC_EXCL | 0666);
-    
-    if (fd_shm_get == -1)
+    int fd = shm_open(SHM_NAME, O_RDWR, 0);
+    if (fd < 0)
     {
-        if(errno == ENOENT)
-        {
-            comprobador(lag);
-            
-        }
-        else
-        {
-            printf("Error: %s\n", strerror(errno));
-            perror("shmget");
-            exit(EXIT_FAILURE);
-        }
+        // La memoria compartida no existe
+        comprobador(lag);
     }
     else
     {
+        // La memoria compartida ya existe
         monitor(lag);
     }
-
-    close(fd_shm_get);
-    shmctl(fd_shm_get, IPC_RMID, NULL);
-
+    /*elimina la memoria*/
+    shm_unlink(SHM_NAME);
+    
     return 0;
 }

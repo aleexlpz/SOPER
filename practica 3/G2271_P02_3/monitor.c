@@ -13,6 +13,7 @@ El proceso Monitor:
 int monitor(int lag)
 {
     printf("Monitor\n");
+
     /*
     //abre el segmento de memoria compartida
     int fd;

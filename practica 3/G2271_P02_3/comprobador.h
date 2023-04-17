@@ -13,7 +13,8 @@
 #include <mqueue.h>
 
 
-#define QUEUE_NAME "/cola"
+
+#define SHM_KEY 1234
 
 
 int comprobador(int lag);

@@ -14,10 +14,15 @@
 
 #include "pow.h"
 
-#define QUEUE_NAME "/ cola"
+#define QUEUE_NAME "/cola"
 #define MAX_MSG 7
 #define BUFFER_SIZE MAX_MSG + 10
 
-
+typedef struct
+{
+    long flag;
+    int value1;
+    int value2;
+} msgbuf;
 
 int pow_search(int objetivo);

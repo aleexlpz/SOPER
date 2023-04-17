@@ -14,12 +14,7 @@ El proceso resultante de ejecutar este programa, Minero:
 • Liberara los recursos y terminara.
 */
 
-struct msgbuf
-{
-    int flag1;
-    long int value1;
-    long int value2;
-} msg_buf;
+
 
 int pow_search(int objetivo)
 {
@@ -43,42 +38,53 @@ int main(int argc, char *argv[])
 
     //crea la cola de mensajes
     mqd_t mq;
+    msgbuf msg;
     struct mq_attr attr;
+    int n_rounds, lag;
+    n_rounds = atoi(argv[1]);
+    lag = atoi(argv[2]);
+
     attr.mq_maxmsg = MAX_MSG;
-    attr.mq_msgsize = BUFFER_SIZE;
-    mq_unlink(QUEUE_NAME);
-    mq = mq_open(QUEUE_NAME, O_CREAT | O_RDWR, 0666, &attr);
+    attr.mq_msgsize = sizeof(msg);
+    attr.mq_flags = 0;
+    attr.mq_curmsgs = 0;
+    //mq_unlink(QUEUE_NAME);
+    mq = mq_open(QUEUE_NAME, O_CREAT | O_WRONLY, 0666, &attr);
     if (mq == -1)
     {
         perror("Error creating the message queue");
         exit(EXIT_FAILURE);
     }
  
-    int n_rounds, lag;
-    n_rounds = atoi(argv[1]);
-    lag = atoi(argv[2]);
+    
 
         
-    int objetivo = 0;
+    long int objetivo = 0;
+    long int res;
     int i;
     for (i = 0; i < n_rounds; i++)
     {
-        int res = pow_search(objetivo);
-        if (res == -1)
+        res = pow_search(objetivo);
+        
+        /* Enviara un mensaje por la cola de mensajes que contenga, al menos, el objetivo y la solucion hallada. */
+        
+        msg.value1 = objetivo;
+        msg.value2 = res;
+        
+        if(i == n_rounds-1)
         {
-            printf("Solution rejected: %08d !-> %08d", objetivo, res);
-            exit(EXIT_FAILURE);
+            msg.flag = 1;
         }
         else
         {
-            printf("Solution accepted: %08d --> %08d\n", objetivo, res);
+            msg.flag = 0;
         }
-        /* Enviara un mensaje por la cola de mensajes que contenga, al menos, el objetivo y la solucion hallada. */
-        struct msgbuf msg;
-        msg.value1 = objetivo;
-        msg.value2 = res;
-        if (mq_send(mq, (const char *)&msg, sizeof(struct msgbuf), 0) == -1)
+
+        printf("Enviando mensaje: objetivo = %ld, res = %ld\n", objetivo, res);
+        if (mq_send(mq, (char *)&msg, sizeof(msg), 1) == -1)
         {
+            mq_close(mq);
+            mq_unlink(QUEUE_NAME);
             perror("Error sending message");
             exit(EXIT_FAILURE);
         }
@@ -86,23 +92,11 @@ int main(int argc, char *argv[])
         objetivo = res;
         sleep(lag);
     }
+    
+    
 
-    /*
-    Una vez terminadas las rondas, enviara un bloque especial con algun codigo que permita saber al proceso Comprobador que el sistema esta finalizando.
-    */
-    /* int msg[2];
-    msg[0] = -1;
-    msg[1] = -1;
-    if (mq_send(mq, (char *)msg, sizeof(msg), 0) == -1)
-    {
-        perror("Error sending message");
-        exit(EXIT_FAILURE);
-    } */
-    /*
-    liberara los recursos y terminara.
-    */
-    mq_close(mq);   
-    mq_unlink(QUEUE_NAME);
+    //mq_close(mq);   
+    //mq_unlink(QUEUE_NAME);
     exit(EXIT_SUCCESS);
     
 

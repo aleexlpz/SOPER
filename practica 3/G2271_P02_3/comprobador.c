@@ -12,71 +12,80 @@ El proceso Comprobador:
 #include "monitor.h"
 #include "minero.h"
 
-struct msgbuf
+int comprobador(int lag)
 {
-    int value1;
-    int value2;
-} msg_buf;
-
-
-int comprobador(int lag){
     printf("Comprobador\n");
     // Crea e inicializa un segmento de memoria compartida utilizando la funcion shmget
     int msg_count = 0;
+    msgbuf msg;
+    ShmStruct *shm = NULL;
     int fd = shm_open(SHM_NAME, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-    if (fd < 0)
+    if (fd == -1)
     {
         perror("shm_open");
         exit(1);
     }
-    ftruncate(fd, 1024);
-    printf("Memoria compartida creada\n");
-    
-    // Hacer algo con la memoria compartida recién creada
-    void *ptr = mmap(NULL, 1024, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (ptr == MAP_FAILED)
+    if (ftruncate(fd, sizeof(ShmStruct)) == -1)
     {
-        perror("mmap");
+        perror("ftruncate");
+        shm_unlink(SHM_NAME);
         exit(1);
     }
 
-    /*inicializa la cola de mensajes para recibir un mensaje*/
-    mqd_t mq;
+    printf("Memoria compartida creada\n");
 
-    mq = mq_open(QUEUE_NAME, O_RDONLY);
-    if (!mq)
+    // Hacer algo con la memoria compartida recién creada
+    shm = mmap(NULL, sizeof(ShmStruct), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    close(fd);
+    if (shm == MAP_FAILED)
     {
-        perror("Error opening the message queue");
-        exit(EXIT_FAILURE);
+        perror("mmap");
+        shm_unlink(SHM_NAME);
+        exit(1);
     }
+    for (int i = 0; i < SHM_MAX_SLOTS; i++)
+        shm->status[i] = 3;
+    /*inicializa la cola de mensajes para recibir un mensaje*/
+
+    mqd_t mq;
+    
+    struct mq_attr attr;
+    attr.mq_maxmsg = MAX_MSG;
+    attr.mq_msgsize = sizeof(msgbuf);
+    attr.mq_flags = 0;
+    attr.mq_curmsgs = 0;
+    mq = mq_open(QUEUE_NAME, O_RDONLY, 0666, &attr);
+
     // Recibe un bloque y lo muestra
-    struct msgbuf msg;
-    while(msg_count < MAX_MSG){
-        if (!mq_receive(mq, (char *)&msg, BUFFER_SIZE, NULL))
+
+    while (msg.flag != 1 || msg_count < MAX_MSG)
+    {
+        if (mq_receive(mq, (char *)&msg, sizeof(msg), NULL) == -1)
         {
+            mq_unlink(QUEUE_NAME);
+            shm_unlink(SHM_NAME);
             perror("Error receiving the message");
             exit(EXIT_FAILURE);
         }
-        printf("Message received:  %08d --> %08d\n", msg.value1, msg.value2);
-        msg_count++;      
-    }
-    mq_close(mq);
-    // Cierra el segmento de memoria compartida
-    if (munmap(ptr, 1024) == -1)
-    {
-        perror("Error unmapping the shared memory");
-        exit(EXIT_FAILURE);
-    }
-    /*elimina la memoria reservad*/
-    close( fd );
-    if (shm_unlink(SHM_NAME) == -1)
-    {
-        perror("Error removing the shared memory");
-        exit(EXIT_FAILURE);
+        printf("Message received:  %08d --> %08d || %ld\n", msg.value1, msg.value2, msg.flag);
+        msg_count++;
+        /*inserta en la memoria comparida la informacion*/
+
+        if (msg.flag == 1)
+        {
+            printf("Finalizando el sistema\n");
+            break;
+        }
     }
 
-    return 0;   
+    /*inserta en la memoria comparida la informacion*/
+    for (int i = 0; i < SHM_MAX_SLOTS; i++)
+        shm->status[i] = 1;
 
+    mq_unlink(QUEUE_NAME);
+    
+
+    return 0;
 
     /*
     if (ftruncate(fd_shm, SHM_SIZE) == -1){
@@ -117,5 +126,4 @@ int comprobador(int lag){
         perror("Error unlinking the shared memory");
         exit(EXIT_FAILURE);
     }*/
-    return 0;
 }

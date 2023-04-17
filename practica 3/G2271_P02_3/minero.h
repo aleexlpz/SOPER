@@ -21,8 +21,8 @@
 typedef struct
 {
     long flag;
-    int value1;
-    int value2;
+    int obj;
+    int sol;
 } msgbuf;
 
 int pow_search(int objetivo);

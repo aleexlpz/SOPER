@@ -3,7 +3,7 @@ CFLAGS= -g -Wall
 LRT = -lrt
 EJS = minero main
 ########################################################
-OBJECTMAIN = main.o comprobador.o monitor.o
+OBJECTMAIN = main.o comprobador.o monitor.o pow.o
 OBJECTMINERO = minero.o pow.o
 ########################################################
 

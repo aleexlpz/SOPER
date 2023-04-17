@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
     }
  
     
-
+    printf("Generating blocks...\n");
         
     long int objetivo = 0;
     long int res;
@@ -68,8 +68,8 @@ int main(int argc, char *argv[])
         
         /* Enviara un mensaje por la cola de mensajes que contenga, al menos, el objetivo y la solucion hallada. */
         
-        msg.value1 = objetivo;
-        msg.value2 = res;
+        msg.obj = objetivo;
+        msg.sol = res;
         
         if(i == n_rounds-1)
         {
@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
             msg.flag = 0;
         }
 
-        printf("Enviando mensaje: objetivo = %ld, res = %ld\n", objetivo, res);
+        //printf("Enviando mensaje: objetivo = %ld, res = %ld\n", objetivo, res);
         if (mq_send(mq, (char *)&msg, sizeof(msg), 1) == -1)
         {
             mq_close(mq);
@@ -90,8 +90,9 @@ int main(int argc, char *argv[])
         }
     
         objetivo = res;
-        sleep(lag);
+        sleep(lag/1000);
     }
+    printf("Finished\n");
     
     
 

@@ -12,13 +12,14 @@
 #include <fcntl.h>
 #include <mqueue.h>
 
-#define SHM_MAX_SLOTS 6
+#define SHM_MAX_SLOTS 100
 
 typedef struct
 {
     long int objectives[SHM_MAX_SLOTS];
     long int solutions[SHM_MAX_SLOTS];
-    char status[SHM_MAX_SLOTS];
+    int status[SHM_MAX_SLOTS];
+    int num_slots;
 } ShmStruct;
 
 

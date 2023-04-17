@@ -16,8 +16,9 @@ El proceso resultante de ejecutar este programa, Minero:
 
 struct msgbuf
 {
-    int value1;
-    int value2;
+    int flag1;
+    long int value1;
+    long int value2;
 } msg_buf;
 
 int pow_search(int objetivo)
